@@ -1,55 +1,43 @@
-// Find all our documentation at https://docs.near.org
-use near_sdk::{log, near};
+use near_sdk::{
+    env::{self},
+    log, near, Gas, NearToken, Promise,
+};
+use sha2::{Digest, Sha256};
 
-// Define the contract structure
+mod chainsig;
+
 #[near(contract_state)]
-pub struct Contract {
-    greeting: String,
-}
+pub struct Contract {}
 
-// Define the default, which automatically initializes the contract
 impl Default for Contract {
     fn default() -> Self {
-        Self {
-            greeting: "Hello".to_string(),
+        Self {}
+    }
+}
+
+#[near]
+impl Contract {
+    pub fn request_signatures(loops: u16, tgas_per_call: u16) {
+        let key_type = "Ecdsa".to_string();
+        let gas = Gas::from_tgas(tgas_per_call.into());
+
+        for i in 0..loops {
+            let path = format!("loop {}", i);
+
+            let mut hasher = Sha256::new();
+            let string_to_hash = format!("testing {}", i);
+            hasher.update(string_to_hash.as_bytes());
+
+            let payload = format!("{:x}", hasher.finalize());
+
+            chainsig::internal_request_signature(path, payload, key_type.clone(), gas);
+            log!("Loop: {}", i);
         }
     }
 }
 
-// Implement the contract structure
-#[near]
-impl Contract {
-    // Public method - returns the greeting saved, defaulting to DEFAULT_GREETING
-    pub fn get_greeting(&self) -> String {
-        self.greeting.clone()
-    }
+// Deploy
+// cargo near deploy build-non-reproducible-wasm green-harbor.testnet without-init-call network-config testnet sign-with-legacy-keychain send
 
-    // Public method - accepts a greeting, such as "howdy", and records it
-    pub fn set_greeting(&mut self, greeting: String) {
-        log!("Saving greeting: {greeting}");
-        self.greeting = greeting;
-    }
-}
-
-/*
- * The rest of this file holds the inline tests for the code above
- * Learn more about Rust tests: https://doc.rust-lang.org/book/ch11-01-writing-tests.html
- */
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn get_default_greeting() {
-        let contract = Contract::default();
-        // this test did not call set_greeting so should return the default "Hello" greeting
-        assert_eq!(contract.get_greeting(), "Hello");
-    }
-
-    #[test]
-    fn set_then_get_greeting() {
-        let mut contract = Contract::default();
-        contract.set_greeting("howdy".to_string());
-        assert_eq!(contract.get_greeting(), "howdy");
-    }
-}
+// Call
+// near contract call-function as-transaction green-harbor.testnet request_signatures json-args '{"loops": 20, "tgas_per_call": 10}' prepaid-gas '300.0 Tgas' attached-deposit '0 NEAR' sign-as pivortex.testnet network-config testnet sign-with-legacy-keychain send

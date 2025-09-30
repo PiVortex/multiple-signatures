@@ -320,6 +320,7 @@ dependencies = [
  "base64 0.22.1",
  "borsh",
  "hex",
+ "k256",
  "mpc-contract",
  "near-sdk",
  "schemars 0.8.22",
